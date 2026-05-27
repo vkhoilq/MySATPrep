@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# codemap state
+.slim/
+
 # next.js
 /.next/
 /out/

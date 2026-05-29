@@ -109,16 +109,81 @@ export function FullLengthTest({
     };
   }, [practiceSelections.assessment]);
 
-  /** Kick off the test from the intro screen. */
-  const handleStartTest = useCallback(() => {
+  /** Kick off the test from the intro screen — fetch questions first, then transition. */
+  const handleStartTest = useCallback(async () => {
     setError(null);
-    const config = buildTestConfig();
-    dispatch({
-      type: "START_TEST",
-      payload: { config, assessment: practiceSelections.assessment },
-    });
-    // Immediately advance to the first section intro
-    dispatch({ type: "SET_PHASE", payload: "section-intro" });
+    setQuestionsLoading(true);
+
+    try {
+      // Fetch questions for the entire test
+      const response = await fetch("/api/full-length/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assessment: practiceSelections.assessment,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Failed to load questions (${response.status})`
+        );
+      }
+
+      const result = await response.json();
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "Failed to load questions");
+      }
+
+      const selection: TestQuestionSelection = result.data;
+
+      if (selection.totalQuestions === 0) {
+        setError("No questions available for this test. Please try again later.");
+        setQuestionsLoading(false);
+        return;
+      }
+
+      // Extract question slots and pretest slots from the selection
+      const questionSlots: Record<string, string[]> = {};
+      const pretestSlots: Record<string, string[]> = {};
+
+      for (const [moduleKey, moduleSelection] of Object.entries(
+        selection.modules
+      )) {
+        questionSlots[moduleKey] = moduleSelection.questionIds;
+        pretestSlots[moduleKey] = moduleSelection.pretestQuestionIds;
+      }
+
+      // Initialize the test session
+      const config = buildTestConfig();
+      dispatch({
+        type: "START_TEST",
+        payload: { config, assessment: practiceSelections.assessment },
+      });
+
+      // Store question slots in state
+      dispatch({
+        type: "SET_QUESTION_SLOTS",
+        payload: { questionSlots, pretestSlots },
+      });
+
+      // Mark both sections as fetched
+      questionsFetched.current["reading-writing"] = true;
+      questionsFetched.current["math"] = true;
+
+      // Transition to section-intro
+      dispatch({ type: "SET_PHASE", payload: "section-intro" });
+    } catch (err) {
+      setError(
+        `Failed to load questions: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setQuestionsLoading(false);
+    }
   }, [buildTestConfig, practiceSelections.assessment]);
 
   /** Fetch questions for the current section and start the module. */

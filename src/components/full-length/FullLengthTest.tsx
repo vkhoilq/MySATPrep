@@ -2,8 +2,10 @@
 
 import { useEffect, useReducer, useState, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Flag, Play, RotateCcw } from "lucide-react";
+import { MathJaxContext } from "better-react-mathjax";
 
 import { PracticeSelections, PracticeSession } from "@/types/session";
+import { API_Response_Question } from "@/types/question";
 import { FullLengthSection, FullLengthTestConfig } from "@/types/full-length";
 import {
   getModuleKey,
@@ -20,13 +22,11 @@ import {
   getCurrentSection,
   getCurrentModuleState,
 } from "@/lib/full-length/fullLengthReducer";
-import {
-  fetchQuestionsForSection,
-  selectQuestionsForTest,
-} from "@/lib/full-length/questionSelector";
+import { TestQuestionSelection } from "@/lib/full-length/questionSelector";
 import { SectionTimer } from "./SectionTimer";
 import { QuestionNavigator } from "./QuestionNavigator";
 import { TestResultsScreen } from "./TestResultsScreen";
+import { QuestionCard } from "./QuestionCard";
 
 interface FullLengthTestProps {
   /** The user's practice selections (assessment type, subject, etc.). */
@@ -87,6 +87,12 @@ export function FullLengthTest({
   // Track if questions have been fetched for the current section
   const questionsFetched = useRef<Record<string, boolean>>({});
 
+  // ── Question detail cache ──────────────────────────────────────────────────
+  // Maps questionId → full question data (stem, options, correct answer, etc.)
+  const [questionDetails, setQuestionDetails] = useState<Record<string, API_Response_Question>>({});
+  // Track which question IDs are currently being fetched to avoid duplicates
+  const fetchingQuestionIds = useRef<Set<string>>(new Set());
+
   // ── Phase handlers ─────────────────────────────────────────────────────────
 
   /** Build the test config from practice selections. */
@@ -123,33 +129,56 @@ export function FullLengthTest({
       if (!questionsFetched.current[section]) {
         setQuestionsLoading(true);
         try {
-          const questions = await fetchQuestionsForSection(
-            section,
-            practiceSelections.assessment
-          );
+          // Call the server-side API to fetch and select questions
+          const response = await fetch("/api/full-length/questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              assessment: practiceSelections.assessment,
+            }),
+          });
 
-          if (questions.length === 0) {
-            setError(`No questions available for ${section}.`);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(
+              errorData.error || `Failed to load questions (${response.status})`
+            );
+          }
+
+          const result = await response.json();
+
+          if (!result.success || !result.data) {
+            throw new Error(result.error || "Failed to load questions");
+          }
+
+          const selection: TestQuestionSelection = result.data;
+
+          if (selection.totalQuestions === 0) {
+            setError("No questions available for this test.");
             setQuestionsLoading(false);
             return;
           }
 
-          // Select questions for the test
-          const rwQuestions =
-            section === "reading-writing" ? questions : [];
-          const mathQuestions =
-            section === "math" ? questions : [];
+          // Extract question slots and pretest slots from the selection
+          const questionSlots: Record<string, string[]> = {};
+          const pretestSlots: Record<string, string[]> = {};
 
-          const selection = selectQuestionsForTest(
-            rwQuestions.length > 0 ? rwQuestions : [],
-            mathQuestions.length > 0 ? mathQuestions : [],
-            practiceSelections.assessment
-          );
+          for (const [moduleKey, moduleSelection] of Object.entries(
+            selection.modules
+          )) {
+            questionSlots[moduleKey] = moduleSelection.questionIds;
+            pretestSlots[moduleKey] = moduleSelection.pretestQuestionIds;
+          }
 
-          // Store question slots in module state (in a real impl this would
-          // dispatch SET_QUESTION_SLOTS or similar). For now, we manually
-          // dispatch START_MODULE with the correct time remaining.
-          questionsFetched.current[section] = true;
+          // Dispatch question slots into state so START_MODULE can read them
+          dispatch({
+            type: "SET_QUESTION_SLOTS",
+            payload: { questionSlots, pretestSlots },
+          });
+
+          // The API returns questions for ALL modules, so mark both sections as fetched
+          questionsFetched.current["reading-writing"] = true;
+          questionsFetched.current["math"] = true;
         } catch (err) {
           setError(
             `Failed to load ${section} questions: ${
@@ -298,6 +327,41 @@ export function FullLengthTest({
   const currentModuleKey = getModuleKey(currentSection, state.currentModuleNumber);
   const currentTimeLimit = MODULE_TIME_LIMITS[currentModuleKey] || 32 * 60 * 1000;
 
+  // ── Question detail fetching ──────────────────────────────────────────────
+
+  /** Fetch full question data for a single question ID. */
+  const fetchQuestionDetail = useCallback(async (questionId: string) => {
+    if (questionDetails[questionId] || fetchingQuestionIds.current.has(questionId)) {
+      return;
+    }
+    fetchingQuestionIds.current.add(questionId);
+    try {
+      const response = await fetch(`/api/question/${questionId}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setQuestionDetails((prev) => ({
+            ...prev,
+            [questionId]: result.data,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch question ${questionId}:`, err);
+    } finally {
+      fetchingQuestionIds.current.delete(questionId);
+    }
+  }, [questionDetails]);
+
+  /** Fetch question details for the current question when it changes. */
+  const currentQuestionId = currentModuleState?.questionOrder[state.currentQuestionIndex];
+
+  useEffect(() => {
+    if (currentQuestionId && !questionDetails[currentQuestionId]) {
+      fetchQuestionDetail(currentQuestionId);
+    }
+  }, [currentQuestionId, questionDetails, fetchQuestionDetail]);
+
   // ── Render by phase ───────────────────────────────────────────────────────
 
   /** ═══ Intro Phase ═══ */
@@ -423,128 +487,156 @@ export function FullLengthTest({
     const isFirstQuestion = state.currentQuestionIndex === 0;
     const isLastQuestion =
       state.currentQuestionIndex >= totalQuestions - 1;
+    const currentQuestionData = currentQuestionId
+      ? questionDetails[currentQuestionId]
+      : undefined;
+    const isReadingWriting = currentSection === "reading-writing";
 
     return (
-      <div className="mx-auto w-full max-w-5xl">
-        {/* Timer bar */}
-        <div className="mb-4">
-          <SectionTimer
-            timeRemainingMs={currentModuleState.timeRemainingMs}
-            totalTimeMs={currentTimeLimit}
-            isTimerVisible={isTimerVisible}
-            onToggleVisibility={() => setIsTimerVisible((v) => !v)}
-          />
-        </div>
-
-        <div className="flex flex-col gap-4 lg:flex-row">
-          {/* Main content area */}
-          <div className="flex-1">
-            {/* Progress indicator */}
-            <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                Section {state.currentSectionIndex + 1} · Module{" "}
-                {state.currentModuleNumber} · Question{" "}
-                {state.currentQuestionIndex + 1} of {totalQuestions}
-              </span>
-              {currentModuleState.difficulty && (
-                <Badge variant="outline" className="text-[10px]">
-                  {currentModuleState.difficulty === "harder"
-                    ? "Harder Path"
-                    : "Standard Path"}
-              </Badge>
-              )}
-            </div>
-
-            {/* Question display area */}
-            {/* TODO: Integrate with existing question rendering components */}
-            <Card className="min-h-[400px]">
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  Question ID: {currentQuestionId || "—"}
-                </p>
-                <p className="mt-2 text-lg font-medium">
-                  {/* Question stem would be rendered here */}
-                  Question content will be rendered by the existing
-                  question display components in a future integration.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Answer area */}
-            <Card className="mt-3">
-              <CardContent className="p-4">
-                {/* MCQ options / SPR input would go here */}
-                <p className="text-center text-sm text-muted-foreground">
-                  Answer options will be rendered here based on question type
-                  (MCQ buttons or SPR input field).
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Action bar */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrevQuestion}
-                  disabled={isFirstQuestion}
-                >
-                  <ChevronLeft className="mr-1 h-4 w-4" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleNextQuestion}
-                  disabled={isLastQuestion}
-                >
-                  Next
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleToggleFlag}
-                >
-                  <Flag className="mr-1 h-4 w-4" />
-                  Flag for Review
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleReviewFlagged}
-                >
-                  Review Flagged
-                </Button>
-              </div>
-
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleCompleteModule}
-              >
-                Submit Module
-              </Button>
-            </div>
-          </div>
-
-          {/* Sidebar navigator */}
-          <div className="w-full shrink-0 lg:w-56">
-            <QuestionNavigator
-              totalQuestions={totalQuestions}
-              currentIndex={state.currentQuestionIndex}
-              answers={currentModuleState.answers}
-              flaggedForReview={currentModuleState.flaggedForReview}
-              questionIds={currentModuleState.questionOrder}
-              onNavigate={handleNavigateQuestion}
+      <MathJaxContext>
+        <div className="mx-auto w-full max-w-5xl">
+          {/* Timer bar */}
+          <div className="mb-4">
+            <SectionTimer
+              timeRemainingMs={currentModuleState.timeRemainingMs}
+              totalTimeMs={currentTimeLimit}
+              isTimerVisible={isTimerVisible}
+              onToggleVisibility={() => setIsTimerVisible((v) => !v)}
             />
           </div>
+
+          <div className="flex flex-col gap-4 lg:flex-row">
+            {/* Main content area */}
+            <div className="flex-1">
+              {/* Progress indicator */}
+              <div className="mb-3 flex items-center justify-between text-sm text-muted-foreground">
+                <span>
+                  Section {state.currentSectionIndex + 1} · Module{" "}
+                  {state.currentModuleNumber} · Question{" "}
+                  {state.currentQuestionIndex + 1} of {totalQuestions}
+                </span>
+                {currentModuleState.difficulty && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {currentModuleState.difficulty === "harder"
+                      ? "Harder Path"
+                      : "Standard Path"}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Question display area */}
+              <Card className="min-h-[400px]">
+                <CardContent className="p-6">
+                  {currentQuestionData ? (
+                    <QuestionCard
+                      questionData={currentQuestionData}
+                      selectedAnswer={
+                        currentQuestionId
+                          ? currentModuleState.answers[currentQuestionId] ?? null
+                          : null
+                      }
+                      disabledOptions={{}}
+                      onAnswerSelect={(key) => {
+                        if (currentQuestionId) {
+                          dispatch({
+                            type: "SET_QUESTION_ANSWER",
+                            payload: { questionId: currentQuestionId, answer: key },
+                          });
+                        }
+                      }}
+                      onToggleDisabled={() => {
+                        // Strikethrough not needed in full-length mode
+                      }}
+                      onSPRChange={(value) => {
+                        if (currentQuestionId) {
+                          dispatch({
+                            type: "SET_QUESTION_ANSWER",
+                            payload: { questionId: currentQuestionId, answer: value },
+                          });
+                        }
+                      }}
+                      onSPRSubmit={() => {
+                        // SPR submit — just move to next question
+                        handleNextQuestion();
+                      }}
+                      isAnswerChecked={false}
+                      showStrikethrough={false}
+                      isReadingWriting={isReadingWriting}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                      <div className="h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
+                      <p>Loading question…</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Action bar */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevQuestion}
+                    disabled={isFirstQuestion}
+                  >
+                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextQuestion}
+                    disabled={isLastQuestion}
+                  >
+                    Next
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleFlag}
+                  >
+                    <Flag className="mr-1 h-4 w-4" />
+                    Flag for Review
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleReviewFlagged}
+                  >
+                    Review Flagged
+                  </Button>
+                </div>
+
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleCompleteModule}
+                >
+                  Submit Module
+                </Button>
+              </div>
+            </div>
+
+            {/* Sidebar navigator */}
+            <div className="w-full shrink-0 lg:w-56">
+              <QuestionNavigator
+                totalQuestions={totalQuestions}
+                currentIndex={state.currentQuestionIndex}
+                answers={currentModuleState.answers}
+                flaggedForReview={currentModuleState.flaggedForReview}
+                questionIds={currentModuleState.questionOrder}
+                onNavigate={handleNavigateQuestion}
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      </MathJaxContext>
     );
   }
 

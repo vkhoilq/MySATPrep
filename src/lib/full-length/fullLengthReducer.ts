@@ -135,6 +135,15 @@ export function fullLengthReducer(
 
     // ── Section & Module Transitions ────────────────────────────────────────
 
+    case "SET_QUESTION_SLOTS": {
+      const { questionSlots, pretestSlots } = action.payload;
+      return {
+        ...state,
+        questionSlots,
+        pretestSlots,
+      };
+    }
+
     case "START_SECTION": {
       const { sectionIndex } = action.payload;
       return {

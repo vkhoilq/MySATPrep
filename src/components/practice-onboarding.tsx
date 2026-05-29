@@ -48,6 +48,13 @@ export default function PracticeOnboarding({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
+  // Clear PSAT assessment selection when switching to full-length
+  useEffect(() => {
+    if (selectedValue === "full-length" && selectedAssessment !== "SAT" && selectedAssessment !== "") {
+      setSelectedAssessment("");
+    }
+  }, [selectedValue]);
+
   const items = [
     {
       value: "rush",
@@ -64,7 +71,6 @@ export default function PracticeOnboarding({
 
       description:
         "Take a full length practice with problems from Collegeboard's question bank.",
-      disabled: true,
     },
   ];
 
@@ -74,6 +80,7 @@ export default function PracticeOnboarding({
       label: "SAT",
       icon: SAT_ICON,
       description: "Digital SAT Assessment",
+      disabled: false,
     },
     {
       value: "PSAT/NMSQT",
@@ -81,6 +88,7 @@ export default function PracticeOnboarding({
       icon: NMSQT_ICON,
 
       description: "PSAT/NMSQT & PSAT 10",
+      disabled: selectedValue === "full-length",
     },
     {
       value: "PSAT",
@@ -88,6 +96,7 @@ export default function PracticeOnboarding({
       icon: PSAT_ICON,
 
       description: "PSAT 8/9 Assessment",
+      disabled: selectedValue === "full-length",
     },
   ];
 
@@ -112,7 +121,22 @@ export default function PracticeOnboarding({
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
-      setStep(3);
+      // Full-length practice skips subject/domain/difficulty selection
+      // (the test blueprint determines these)
+      if (selectedValue === "full-length") {
+        onComplete({
+          practiceType: selectedValue,
+          assessment: selectedAssessment,
+          subject: "",
+          domains: [],
+          skills: [],
+          difficulties: [],
+          randomize: true,
+          excludeBluebook: true,
+        });
+      } else {
+        setStep(3);
+      }
     } else if (step === 3) {
       setStep(4);
     } else {
@@ -304,7 +328,6 @@ export default function PracticeOnboarding({
                         id={`${id}-${item.value}`}
                         value={item.value}
                         className="sr-only after:absolute after:inset-0"
-                        disabled={item.disabled}
                       />
                       <Image
                         src={item.icon}
@@ -367,7 +390,13 @@ export default function PracticeOnboarding({
                         id={`${id}-assessment-${item.value}`}
                         value={item.value}
                         className="sr-only after:absolute after:inset-0"
+                        disabled={item.disabled}
                       />
+                      {item.disabled && (
+                        <span className="absolute top-2 right-2 bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          Coming Soon
+                        </span>
+                      )}
                       <Image
                         src={item.icon}
                         alt={"label"}
@@ -393,7 +422,7 @@ export default function PracticeOnboarding({
                   onClick={handleContinue}
                   disabled={!selectedAssessment}
                 >
-                  Choose Subject
+{selectedValue === "full-length" ? "Start Full Length Practice" : "Choose Subject"}
                   <div className=" text-white   size-6 overflow-hidden rounded-full duration-500">
                     <div className="flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0">
                       <span className="flex size-6">

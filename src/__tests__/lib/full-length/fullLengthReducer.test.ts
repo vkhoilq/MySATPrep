@@ -464,6 +464,60 @@ describe("fullLengthReducer", () => {
     });
   });
 
+  // ─── SET_QUESTION_SLOTS ─────────────────────────────────────────────
+  describe("SET_QUESTION_SLOTS", () => {
+    it("sets questionSlots and pretestSlots on state", () => {
+      const state = startTest(initialState);
+      const questionSlots = {
+        "reading-writing-1": ["q1", "q2", "q3"],
+        "reading-writing-2": ["q4", "q5"],
+        "math-1": ["m1", "m2", "m3"],
+        "math-2": ["m4", "m5"],
+      };
+      const pretestSlots = {
+        "reading-writing-1": ["q1"],
+        "math-1": ["m1"],
+      };
+      const next = dispatch(state, {
+        type: "SET_QUESTION_SLOTS",
+        payload: { questionSlots, pretestSlots },
+      });
+      expect(next.questionSlots).toEqual(questionSlots);
+      expect(next.pretestSlots).toEqual(pretestSlots);
+    });
+
+    it("does not affect other state fields", () => {
+      const state = startTest(initialState);
+      const next = dispatch(state, {
+        type: "SET_QUESTION_SLOTS",
+        payload: { questionSlots: {}, pretestSlots: {} },
+      });
+      expect(next.sessionId).toBe(state.sessionId);
+      expect(next.phase).toBe(state.phase);
+      expect(next.currentSectionIndex).toBe(state.currentSectionIndex);
+    });
+
+    it("overwrites previous questionSlots", () => {
+      const state = startTest(initialState);
+      const first = dispatch(state, {
+        type: "SET_QUESTION_SLOTS",
+        payload: {
+          questionSlots: { "reading-writing-1": ["q1"] },
+          pretestSlots: {},
+        },
+      });
+      const second = dispatch(first, {
+        type: "SET_QUESTION_SLOTS",
+        payload: {
+          questionSlots: { "math-1": ["m1", "m2"] },
+          pretestSlots: { "math-1": ["m1"] },
+        },
+      });
+      expect(second.questionSlots).toEqual({ "math-1": ["m1", "m2"] });
+      expect(second.pretestSlots).toEqual({ "math-1": ["m1"] });
+    });
+  });
+
   // ─── START_MODULE ───────────────────────────────────────────────────
   describe("START_MODULE", () => {
     function startModule(

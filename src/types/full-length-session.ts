@@ -126,6 +126,7 @@ export type FullLengthAction =
   | { type: "START_TEST"; payload: { config: FullLengthTestConfig; assessment: string } }
   | { type: "START_SECTION"; payload: { sectionIndex: number } }
   | { type: "START_MODULE"; payload: { section: FullLengthSection; moduleNumber: FullLengthModule; timeRemainingMs: number } }
+  | { type: "SET_QUESTION_SLOTS"; payload: { questionSlots: Record<string, string[]>; pretestSlots: Record<string, string[]> } }
   | { type: "SET_QUESTION_ANSWER"; payload: { questionId: string; answer: string | null } }
   | { type: "NAVIGATE_QUESTION"; payload: { questionIndex: number } }
   | { type: "TOGGLE_FLAG_FOR_REVIEW"; payload: { questionId: string } }

@@ -535,9 +535,14 @@ export function FullLengthTest({
 
   // ── Render by phase ───────────────────────────────────────────────────────
 
+  /** Wrapper to add top padding for the fixed navbar. */
+  const renderWithLayout = (content: React.ReactNode) => (
+    <div className="min-h-screen pt-32 pb-10">{content}</div>
+  );
+
   /** ═══ Intro Phase ═══ */
   if (state.phase === "intro") {
-    return (
+    return renderWithLayout(
       <Card className="mx-auto w-full max-w-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Full-Length Practice Test</CardTitle>
@@ -601,7 +606,7 @@ export function FullLengthTest({
     const sectionLabel =
       SECTION_LABELS[currentSection] || SECTION_LABELS["reading-writing"];
 
-    return (
+    return renderWithLayout(
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">
@@ -643,16 +648,16 @@ export function FullLengthTest({
   /** ═══ Module Active Phase ═══ */
   if (state.phase === "module-active") {
     if (!currentModuleState) {
-      return (
+      return renderWithLayout(
         <Card className="mx-auto w-full max-w-xl">
           <CardContent className="py-8 text-center text-muted-foreground">
             Loading module…
           </CardContent>
         </Card>
-      );
-    }
+    );
+  }
 
-    const currentQuestionId =
+  const currentQuestionId =
       currentModuleState.questionOrder[state.currentQuestionIndex];
     const totalQuestions = currentModuleState.questionOrder.length;
     const isFirstQuestion = state.currentQuestionIndex === 0;
@@ -663,7 +668,7 @@ export function FullLengthTest({
       : undefined;
     const isReadingWriting = currentSection === "reading-writing";
 
-    return (
+    return renderWithLayout(
       <MathJaxContext>
         <div className="mx-auto w-full max-w-5xl">
           {/* Timer bar */}
@@ -814,7 +819,7 @@ export function FullLengthTest({
   /** ═══ Module Review Phase ═══ */
   if (state.phase === "module-review") {
     if (!currentModuleState) {
-      return (
+      return renderWithLayout(
         <Card className="mx-auto w-full max-w-xl">
           <CardContent className="py-8 text-center text-muted-foreground">
             Loading review…
@@ -827,7 +832,7 @@ export function FullLengthTest({
       (id) => currentModuleState.flaggedForReview.has(id)
     );
 
-    return (
+    return renderWithLayout(
       <Card className="mx-auto w-full max-w-xl">
         <CardHeader>
           <CardTitle>Review Flagged Questions</CardTitle>
@@ -897,7 +902,7 @@ export function FullLengthTest({
     const section = getCurrentSection(state);
     const sectionLabel = SECTION_LABELS[section];
 
-    return (
+    return renderWithLayout(
       <Card className="mx-auto w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle>Module Complete</CardTitle>
@@ -943,7 +948,7 @@ export function FullLengthTest({
       Math.floor((state.breakTimeRemainingMs % 60000) / 1000)
     );
 
-    return (
+    return renderWithLayout(
       <Card className="mx-auto w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle>Break Time</CardTitle>
@@ -991,7 +996,7 @@ export function FullLengthTest({
 
   /** ═══ Test Complete Phase ═══ */
   if (state.phase === "test-complete") {
-    return (
+    return renderWithLayout(
       <TestResultsScreen
         testResult={state.testResult}
         onReviewQuestions={handleReviewQuestions}
@@ -1001,7 +1006,7 @@ export function FullLengthTest({
   }
 
   // ── Fallback ───────────────────────────────────────────────────────────────
-  return (
+  return renderWithLayout(
     <Card className="mx-auto w-full max-w-xl">
       <CardContent className="py-8 text-center text-muted-foreground">
         Unknown test phase: {state.phase}

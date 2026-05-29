@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { CheckCircle, XCircle, Clock, Trophy, ArrowLeft, ChevronDown } from "lucide-react";
+import { MathJax, MathJaxContext } from "better-react-mathjax";
+import { CheckCircle, XCircle, X, Clock, Trophy, ArrowLeft, ChevronDown } from "lucide-react";
 
 import { FullLengthTestResult, QuestionResult } from "@/types/full-length";
 import { API_Response_Question, QuestionDifficulty } from "@/types/question";
@@ -147,7 +148,8 @@ export function TestResultsScreen({
   const mathSection = testResult.sections[1];
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
+    <MathJaxContext>
+      <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
       {/* ────── Hero Score Card ────── */}
       <Card className="overflow-hidden border-2 border-primary/20">
         <CardHeader className="bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 pb-4 text-center">
@@ -521,6 +523,278 @@ export function TestResultsScreen({
         </CardContent>
       </Card>
 
+      {/* ────── Full Question Review ────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Full Question Review</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {testResult.sections.map((section) => {
+            const sectionLabel = sectionDisplayName(section.section);
+            return section.modules.map((module) => {
+              const moduleLabel = `${sectionLabel} Module ${module.moduleNumber}`;
+              const correctCount = module.questionResults.filter(
+                (q) => q.isCorrect
+              ).length;
+              const unansweredCount = module.questionResults.filter(
+                (q) => q.isUnanswered
+              ).length;
+              const incorrectCount =
+                module.questionResults.length - correctCount - unansweredCount;
+
+              return (
+                <Collapsible
+                  key={`full-${section.section}-${module.moduleNumber}`}
+                  defaultOpen={false}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold">
+                        {moduleLabel}
+                      </span>
+                      <div className="flex gap-2 text-xs">
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CheckCircle className="h-3 w-3" />
+                          {correctCount}
+                        </span>
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <XCircle className="h-3 w-3" />
+                          {incorrectCount}
+                        </span>
+                        {unansweredCount > 0 && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <span className="inline-flex h-3 w-3 items-center justify-center">
+                              —
+                            </span>
+                            {unansweredCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-3 space-y-4">
+                      {module.questionResults.map((qr, idx) => {
+                        const questionDetail =
+                          questionDetails[qr.questionId];
+                        const isUnanswered = qr.isUnanswered;
+                        const isMCQ = questionDetail?.type === "mcq";
+
+                        return (
+                          <Card
+                            key={qr.questionId}
+                            className={cn(
+                              "overflow-hidden",
+                              qr.isCorrect &&
+                                "border-green-200 dark:border-green-900",
+                              !qr.isCorrect &&
+                                !isUnanswered &&
+                                "border-red-200 dark:border-red-900",
+                              isUnanswered &&
+                                "border-gray-200 dark:border-gray-800"
+                            )}
+                          >
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold">
+                                    Question {idx + 1}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "px-1.5 py-0 text-[10px]",
+                                      difficultyBadgeColor(qr.difficulty)
+                                    )}
+                                  >
+                                    {qr.difficulty}
+                                  </Badge>
+                                </div>
+                                {qr.isCorrect ? (
+                                  <span className="flex items-center gap-1 text-sm font-medium text-green-600 dark:text-green-400">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Correct
+                                  </span>
+                                ) : isUnanswered ? (
+                                  <span className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
+                                    <span className="inline-flex h-4 w-4 items-center justify-center">
+                                      —
+                                    </span>
+                                    Unanswered
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    <X className="h-4 w-4" />
+                                    Incorrect
+                                  </span>
+                                )}
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-0">
+                              {questionDetail?.stimulus && (
+                                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                                  <MathJax inline dynamic>
+                                    <span
+                                      dangerouslySetInnerHTML={{
+                                        __html: questionDetail.stimulus,
+                                      }}
+                                    />
+                                  </MathJax>
+                                </div>
+                              )}
+
+                              {questionDetail?.stem ? (
+                                <MathJax inline dynamic>
+                                  <span
+                                    className="text-base"
+                                    dangerouslySetInnerHTML={{
+                                      __html: questionDetail.stem,
+                                    }}
+                                  />
+                                </MathJax>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Question details not available.
+                                </p>
+                              )}
+
+                              {isMCQ && questionDetail?.answerOptions && (
+                                <div className="flex flex-col gap-3">
+                                  {Object.entries(
+                                    questionDetail.answerOptions
+                                  ).map(([key, value], optIdx) => {
+                                    const trimmedKey = key.trim();
+                                    const isCorrect =
+                                      qr.correctAnswer.includes(trimmedKey);
+                                    const isUserSelected =
+                                      !isUnanswered &&
+                                      qr.userAnswer?.trim() === trimmedKey;
+                                    const isUserWrong =
+                                      isUserSelected && !isCorrect;
+
+                                    return (
+                                      <div
+                                        key={key}
+                                        className={cn(
+                                          "flex items-center gap-3 rounded-lg border-2 p-3 transition-colors",
+                                          isCorrect &&
+                                            "border-green-500 bg-green-500/10 dark:bg-green-500/5",
+                                          isUserWrong &&
+                                            "border-red-500 bg-red-500/10 dark:bg-red-500/5",
+                                          !isCorrect &&
+                                            !isUserSelected &&
+                                            "border-input opacity-60"
+                                        )}
+                                      >
+                                        <div
+                                          className={cn(
+                                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold",
+                                            isCorrect &&
+                                              "border-green-500 bg-green-500 text-white",
+                                            isUserWrong &&
+                                              "border-red-500 bg-red-500 text-white",
+                                            !isCorrect &&
+                                              !isUserSelected &&
+                                              "border-gray-300 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+                                          )}
+                                        >
+                                          {isCorrect ? (
+                                            <CheckCircle className="h-4 w-4" />
+                                          ) : isUserWrong ? (
+                                            <X className="h-4 w-4" />
+                                          ) : (
+                                            String.fromCharCode(65 + optIdx)
+                                          )}
+                                        </div>
+                                        <div
+                                          className={cn(
+                                            "flex-1 text-sm",
+                                            !isCorrect &&
+                                              !isUserSelected &&
+                                              "line-through text-muted-foreground"
+                                          )}
+                                        >
+                                          <MathJax inline dynamic>
+                                            <span
+                                              dangerouslySetInnerHTML={{
+                                                __html: value,
+                                              }}
+                                            />
+                                          </MathJax>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {!isMCQ && (
+                                <div className="space-y-2 rounded-lg border p-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">
+                                      Your Answer:
+                                    </span>
+                                    {isUnanswered ? (
+                                      <span className="text-sm italic text-muted-foreground">
+                                        Unanswered
+                                      </span>
+                                    ) : (
+                                      <span
+                                        className={cn(
+                                          "text-sm font-medium",
+                                          qr.isCorrect
+                                            ? "text-green-600 dark:text-green-400"
+                                            : "text-red-600 dark:text-red-400"
+                                        )}
+                                      >
+                                        {qr.userAnswer}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">
+                                      Correct Answer:
+                                    </span>
+                                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                      {qr.correctAnswer.join(", ")}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {questionDetail?.rationale && (
+                                <Collapsible defaultOpen={false}>
+                                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-2 text-left text-sm font-medium transition-colors hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                                    <span>Explanation</span>
+                                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent>
+                                    <div className="mt-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                                      <MathJax inline dynamic>
+                                        <span
+                                          dangerouslySetInnerHTML={{
+                                            __html: questionDetail.rationale,
+                                          }}
+                                        />
+                                      </MathJax>
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            });
+          })}
+        </CardContent>
+      </Card>
+
       {/* ────── Time Overview ────── */}
       <Card>
         <CardHeader>
@@ -576,5 +850,6 @@ export function TestResultsScreen({
         </Button>
       </div>
     </div>
+    </MathJaxContext>
   );
 }

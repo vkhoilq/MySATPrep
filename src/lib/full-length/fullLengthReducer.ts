@@ -60,6 +60,7 @@ export function createInitialFullLengthState(): FullLengthSession {
     breakTimeRemainingMs: 0,
     questionSlots: {},
     pretestSlots: {},
+    questionMeta: {},
     sectionResults: [],
     testResult: null,
     totalTimeSpentMs: 0,
@@ -136,11 +137,12 @@ export function fullLengthReducer(
     // ── Section & Module Transitions ────────────────────────────────────────
 
     case "SET_QUESTION_SLOTS": {
-      const { questionSlots, pretestSlots } = action.payload;
+      const { questionSlots, pretestSlots, questionMeta } = action.payload;
       return {
         ...state,
         questionSlots,
         pretestSlots,
+        questionMeta,
       };
     }
 

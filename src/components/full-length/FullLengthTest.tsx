@@ -25,7 +25,7 @@ import {
   getCurrentSection,
   getCurrentModuleState,
 } from "@/lib/full-length/fullLengthReducer";
-import { TestQuestionSelection } from "@/lib/full-length/questionSelector";
+import { TestQuestionSelection, QuestionMeta } from "@/lib/full-length/questionSelector";
 import { calculateModuleResult, calculateSectionResult, calculateTestResult } from "@/lib/full-length/scoring";
 import { SectionTimer } from "./SectionTimer";
 import { QuestionNavigator } from "./QuestionNavigator";
@@ -172,7 +172,7 @@ export function FullLengthTest({
       // Store question slots in state
       dispatch({
         type: "SET_QUESTION_SLOTS",
-        payload: { questionSlots, pretestSlots },
+        payload: { questionSlots, pretestSlots, questionMeta: selection.questionMeta },
       });
 
       // Mark both sections as fetched
@@ -248,7 +248,7 @@ export function FullLengthTest({
           // Dispatch question slots into state so START_MODULE can read them
           dispatch({
             type: "SET_QUESTION_SLOTS",
-            payload: { questionSlots, pretestSlots },
+            payload: { questionSlots, pretestSlots, questionMeta: selection.questionMeta },
           });
 
           // The API returns questions for ALL modules, so mark both sections as fetched
@@ -435,14 +435,20 @@ export function FullLengthTest({
 
   // ── Question detail fetching ──────────────────────────────────────────────
 
-  /** Fetch full question data for a single question ID. */
+  /** Fetch full question data for a single question ID.
+   *  Resolves the short questionId hash to external_id or ibn for the API call,
+   *  since /api/question/:id expects external_id/ibn format, not the short hash.
+   */
   const fetchQuestionDetail = useCallback(async (questionId: string) => {
     if (questionDetails[questionId] || fetchingQuestionIds.current.has(questionId)) {
       return;
     }
     fetchingQuestionIds.current.add(questionId);
     try {
-      const response = await fetch(`/api/question/${questionId}`);
+      // Resolve questionId → external_id or ibn for the detail API
+      const meta = state.questionMeta[questionId];
+      const detailId = meta?.externalId || meta?.ibn || questionId;
+      const response = await fetch(`/api/question/${detailId}`);
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
@@ -457,7 +463,7 @@ export function FullLengthTest({
     } finally {
       fetchingQuestionIds.current.delete(questionId);
     }
-  }, [questionDetails]);
+  }, [questionDetails, state.questionMeta]);
 
   /** Fetch question details for the current question when it changes. */
   const currentQuestionId = currentModuleState?.questionOrder[state.currentQuestionIndex];

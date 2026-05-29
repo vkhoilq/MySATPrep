@@ -53,6 +53,22 @@ export interface ModuleQuestionSelection {
   slots: FullLengthQuestionSlot[];
 }
 
+/** Metadata about a question needed for detail fetching */
+export interface QuestionMeta {
+  /** The questionId from the listing (short hash) */
+  questionId: string;
+  /** The external_id for fetching question details (preferred) */
+  externalId: string | null;
+  /** The IBN for disclosed questions (fallback) */
+  ibn: string | null;
+  /** The difficulty level */
+  difficulty: QuestionDifficulty;
+  /** The domain (primary class code) */
+  primaryClassCd: string;
+  /** The skill code */
+  skillCd: string;
+}
+
 /** Result of selecting questions for an entire test */
 export interface TestQuestionSelection {
   /** Selections for each module, keyed by "section-moduleNumber" */
@@ -61,6 +77,8 @@ export interface TestQuestionSelection {
   totalQuestions: number;
   /** Any warnings encountered during selection */
   warnings: string[];
+  /** Metadata for each question, keyed by questionId */
+  questionMeta: Record<string, QuestionMeta>;
 }
 
 // ─── Question Pool Helpers ────────────────────────────────────────────────────
@@ -401,7 +419,32 @@ export function selectQuestionsForTest(
     modules,
     totalQuestions: totalSelected,
     warnings,
+    questionMeta: buildQuestionMeta(rwQuestions, mathQuestions),
   };
+}
+
+/**
+ * Build a metadata map from question listing data.
+ * Maps questionId → { externalId, ibn, difficulty, primaryClassCd, skillCd }
+ * so the client can use the correct identifier when fetching question details.
+ */
+function buildQuestionMeta(
+  rwQuestions: PlainQuestionType[],
+  mathQuestions: PlainQuestionType[]
+): Record<string, QuestionMeta> {
+  const meta: Record<string, QuestionMeta> = {};
+  const allQuestions = [...rwQuestions, ...mathQuestions];
+  for (const q of allQuestions) {
+    meta[q.questionId] = {
+      questionId: q.questionId,
+      externalId: q.external_id,
+      ibn: q.ibn,
+      difficulty: q.difficulty,
+      primaryClassCd: q.primary_class_cd,
+      skillCd: q.skill_cd,
+    };
+  }
+  return meta;
 }
 
 /**

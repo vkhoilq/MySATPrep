@@ -22,6 +22,7 @@ import {
 } from "./full-length";
 import { SessionStatus } from "./session";
 import { QuestionAnswers, QuestionTimes, AnsweredQuestionDetails } from "./session";
+import { QuestionMeta } from "@/lib/full-length/questionSelector";
 
 // ─── Session Configuration ─────────────────────────────────────────────────────
 
@@ -105,6 +106,8 @@ export interface FullLengthSession {
   questionSlots: Record<string, string[]>;
   /** Pretest question IDs for each module, keyed by "section-moduleNumber" */
   pretestSlots: Record<string, string[]>;
+  /** Metadata for each question (external_id, ibn, etc.) keyed by questionId */
+  questionMeta: Record<string, QuestionMeta>;
 
   // ── Results (filled as sections complete) ──
   /** Results for completed sections */
@@ -126,7 +129,7 @@ export type FullLengthAction =
   | { type: "START_TEST"; payload: { config: FullLengthTestConfig; assessment: string } }
   | { type: "START_SECTION"; payload: { sectionIndex: number } }
   | { type: "START_MODULE"; payload: { section: FullLengthSection; moduleNumber: FullLengthModule; timeRemainingMs: number } }
-  | { type: "SET_QUESTION_SLOTS"; payload: { questionSlots: Record<string, string[]>; pretestSlots: Record<string, string[]> } }
+  | { type: "SET_QUESTION_SLOTS"; payload: { questionSlots: Record<string, string[]>; pretestSlots: Record<string, string[]>; questionMeta: Record<string, QuestionMeta> } }
   | { type: "SET_QUESTION_ANSWER"; payload: { questionId: string; answer: string | null } }
   | { type: "NAVIGATE_QUESTION"; payload: { questionIndex: number } }
   | { type: "TOGGLE_FLAG_FOR_REVIEW"; payload: { questionId: string } }
@@ -170,6 +173,7 @@ export function createFullLengthSession(
     breakTimeRemainingMs: 0,
     questionSlots: {},
     pretestSlots: {},
+    questionMeta: {},
     sectionResults: [],
     testResult: null,
     totalTimeSpentMs: 0,
@@ -198,6 +202,7 @@ export function isValidFullLengthSession(obj: unknown): obj is FullLengthSession
     typeof session.moduleStates === "object" &&
     typeof session.module2Difficulty === "object" &&
     typeof session.questionSlots === "object" &&
+    typeof session.questionMeta === "object" &&
     Array.isArray(session.sectionResults)
   );
 }

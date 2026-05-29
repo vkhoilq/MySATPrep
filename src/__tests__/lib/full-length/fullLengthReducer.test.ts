@@ -480,7 +480,7 @@ describe("fullLengthReducer", () => {
       };
       const next = dispatch(state, {
         type: "SET_QUESTION_SLOTS",
-        payload: { questionSlots, pretestSlots },
+        payload: { questionSlots, pretestSlots, questionMeta: {} },
       });
       expect(next.questionSlots).toEqual(questionSlots);
       expect(next.pretestSlots).toEqual(pretestSlots);
@@ -490,7 +490,7 @@ describe("fullLengthReducer", () => {
       const state = startTest(initialState);
       const next = dispatch(state, {
         type: "SET_QUESTION_SLOTS",
-        payload: { questionSlots: {}, pretestSlots: {} },
+        payload: { questionSlots: {}, pretestSlots: {}, questionMeta: {} },
       });
       expect(next.sessionId).toBe(state.sessionId);
       expect(next.phase).toBe(state.phase);
@@ -504,6 +504,7 @@ describe("fullLengthReducer", () => {
         payload: {
           questionSlots: { "reading-writing-1": ["q1"] },
           pretestSlots: {},
+          questionMeta: {},
         },
       });
       const second = dispatch(first, {
@@ -511,6 +512,7 @@ describe("fullLengthReducer", () => {
         payload: {
           questionSlots: { "math-1": ["m1", "m2"] },
           pretestSlots: { "math-1": ["m1"] },
+          questionMeta: {},
         },
       });
       expect(second.questionSlots).toEqual({ "math-1": ["m1", "m2"] });

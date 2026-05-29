@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
+    "docker": "docker buildx build --platform linux/amd64 -t lqkhoi/practicesat:latest --push ."
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^1.0.15",

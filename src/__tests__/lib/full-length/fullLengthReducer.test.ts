@@ -972,19 +972,19 @@ describe("fullLengthReducer", () => {
   describe("START_BREAK", () => {
     it("sets phase to 'break'", () => {
       const state = startTest(initialState);
-      const next = dispatch(state, { type: "START_BREAK" });
+      const next = dispatch(state, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       expect(next.phase).toBe("break");
     });
 
     it("sets breakTaken to true", () => {
       const state = startTest(initialState);
-      const next = dispatch(state, { type: "START_BREAK" });
+      const next = dispatch(state, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       expect(next.breakTaken).toBe(true);
     });
 
     it("sets breakTimeRemainingMs to 600000 (10 minutes)", () => {
       const state = startTest(initialState);
-      const next = dispatch(state, { type: "START_BREAK" });
+      const next = dispatch(state, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       expect(next.breakTimeRemainingMs).toBe(600_000);
     });
   });
@@ -993,7 +993,7 @@ describe("fullLengthReducer", () => {
   describe("TICK_BREAK_TIMER", () => {
     function breakState(breakTimeRemainingMs = 600_000): FullLengthSession {
       let s = startTest(initialState);
-      s = dispatch(s, { type: "START_BREAK" });
+      s = dispatch(s, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       return { ...s, breakTimeRemainingMs };
     }
 
@@ -1039,13 +1039,13 @@ describe("fullLengthReducer", () => {
   // ─── COMPLETE_BREAK ─────────────────────────────────────────────────
   describe("COMPLETE_BREAK", () => {
     it("sets breakTimeRemainingMs to 0", () => {
-      const state = dispatch(startTest(initialState), { type: "START_BREAK" });
+      const state = dispatch(startTest(initialState), { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       const next = dispatch(state, { type: "COMPLETE_BREAK" });
       expect(next.breakTimeRemainingMs).toBe(0);
     });
 
     it("sets phase to section-intro", () => {
-      const state = dispatch(startTest(initialState), { type: "START_BREAK" });
+      const state = dispatch(startTest(initialState), { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
       const next = dispatch(state, { type: "COMPLETE_BREAK" });
       expect(next.phase).toBe("section-intro");
     });
@@ -1720,7 +1720,7 @@ describe("full test lifecycle", () => {
     expect(state.sectionResults).toHaveLength(1);
 
     // Break
-    state = dispatch(state, { type: "START_BREAK" });
+    state = dispatch(state, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
     expect(state.phase).toBe("break");
     expect(state.breakTimeRemainingMs).toBe(600_000);
     expect(state.breakTaken).toBe(true);
@@ -1843,7 +1843,7 @@ describe("full test lifecycle", () => {
 
   it("auto-transitions from break when TICK_BREAK_TIMER expires", () => {
     let state = startTest(createInitialFullLengthState());
-    state = dispatch(state, { type: "START_BREAK" });
+    state = dispatch(state, { type: "START_BREAK", payload: { breakDurationMs: 10 * 60 * 1000 } });
     state = dispatch(state, {
       type: "TICK_BREAK_TIMER",
       payload: { elapsedMs: 600_000 },

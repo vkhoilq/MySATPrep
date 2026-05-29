@@ -103,6 +103,7 @@ export function FullLengthTest({
 
   // ── QA mode time limits ──────────────────────────────────────────────────────
   const timeLimits = qaMode ? QA_MODULE_TIME_LIMITS : MODULE_TIME_LIMITS;
+  const breakDurationMs = qaMode ? 1 * 60 * 1000 : 10 * 60 * 1000;
 
   // ── Question detail cache ──────────────────────────────────────────────────
   // Maps questionId → full question data (stem, options, correct answer, etc.)
@@ -384,7 +385,7 @@ export function FullLengthTest({
       if (state.currentSectionIndex === 0) {
         // R&W done → break → Math
         if (state.config.includeBreak) {
-          dispatch({ type: "START_BREAK" });
+          dispatch({ type: "START_BREAK", payload: { breakDurationMs } });
         } else {
           dispatch({ type: "START_SECTION", payload: { sectionIndex: 1 } });
         }

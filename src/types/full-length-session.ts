@@ -135,7 +135,7 @@ export type FullLengthAction =
   | { type: "TOGGLE_FLAG_FOR_REVIEW"; payload: { questionId: string } }
   | { type: "COMPLETE_MODULE"; payload: { section: FullLengthSection; moduleNumber: FullLengthModule } }
   | { type: "SET_MODULE2_DIFFICULTY"; payload: { section: FullLengthSection; difficulty: FullLengthModuleDifficulty } }
-  | { type: "START_BREAK" }
+  | { type: "START_BREAK"; payload: { breakDurationMs: number } }
   | { type: "TICK_BREAK_TIMER"; payload: { elapsedMs: number } }
   | { type: "COMPLETE_BREAK" }
   | { type: "TICK_MODULE_TIMER"; payload: { elapsedMs: number } }

@@ -336,11 +336,12 @@ export function fullLengthReducer(
     // ── Break ────────────────────────────────────────────────────────────────
 
     case "START_BREAK": {
+      const { breakDurationMs } = action.payload;
       return {
         ...state,
         phase: "break",
         breakTaken: true,
-        breakTimeRemainingMs: 10 * 60 * 1000, // 10 minutes in ms
+        breakTimeRemainingMs: breakDurationMs,
       };
     }
 
@@ -352,7 +353,10 @@ export function fullLengthReducer(
         return {
           ...state,
           breakTimeRemainingMs: 0,
-          phase: "section-intro", // Move to next section intro
+          currentSectionIndex: state.currentSectionIndex + 1,
+          currentModuleNumber: 1,
+          currentQuestionIndex: 0,
+          phase: "section-intro",
         };
       }
 
@@ -366,6 +370,9 @@ export function fullLengthReducer(
       return {
         ...state,
         breakTimeRemainingMs: 0,
+        currentSectionIndex: state.currentSectionIndex + 1,
+        currentModuleNumber: 1,
+        currentQuestionIndex: 0,
         phase: "section-intro",
       };
     }

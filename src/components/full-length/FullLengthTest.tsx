@@ -5,11 +5,14 @@ import { ChevronLeft, ChevronRight, Flag, Play, RotateCcw } from "lucide-react";
 import { MathJaxContext } from "better-react-mathjax";
 
 import { PracticeSelections, PracticeSession } from "@/types/session";
-import { API_Response_Question } from "@/types/question";
-import { FullLengthSection, FullLengthTestConfig } from "@/types/full-length";
+import { API_Response_Question, QuestionDifficulty } from "@/types/question";
+import { FullLengthSection, FullLengthTestConfig, FullLengthTestResult } from "@/types/full-length";
 import {
   getModuleKey,
   FullLengthTestPhase,
+  saveFullLengthSession,
+  loadFullLengthSession,
+  clearFullLengthSession,
 } from "@/types/full-length-session";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,6 +26,7 @@ import {
   getCurrentModuleState,
 } from "@/lib/full-length/fullLengthReducer";
 import { TestQuestionSelection } from "@/lib/full-length/questionSelector";
+import { calculateModuleResult, calculateSectionResult, calculateTestResult } from "@/lib/full-length/scoring";
 import { SectionTimer } from "./SectionTimer";
 import { QuestionNavigator } from "./QuestionNavigator";
 import { TestResultsScreen } from "./TestResultsScreen";
@@ -296,8 +300,7 @@ export function FullLengthTest({
         }
       } else {
         // Math done → test complete
-        // In a real implementation we would calculate the result here
-        dispatch({ type: "SET_PHASE", payload: "test-complete" });
+        handleCompleteTest();
       }
     }
   }, [state]);
@@ -309,11 +312,43 @@ export function FullLengthTest({
 
   /** Go back to dashboard. */
   const handleBackToDashboard = useCallback(() => {
-    // The parent handles navigation; we just fire the callback
     if (state.testResult) {
-      onSessionComplete({} as PracticeSession, {});
+      // Build a minimal PracticeSession for the parent to record
+      const session: PracticeSession = {
+        sessionId: state.sessionId,
+        timestamp: state.createdAt,
+        status: "completed" as any,
+        practiceSelections: {
+          practiceType: "full-length",
+          assessment: state.assessment,
+          subject: "",
+          domains: [],
+          skills: [],
+          difficulties: [],
+          randomize: true,
+          excludeBluebook: true,
+        },
+        currentQuestionStep: 0,
+        questionAnswers: {},
+        questionTimes: {},
+        answeredQuestionDetails: [],
+        totalQuestions: Object.values(state.moduleStates).reduce(
+          (sum, m) => sum + m.questionOrder.length,
+          0
+        ),
+        answeredQuestions: [],
+        averageTimePerQuestion: 0,
+        totalTimeSpent: state.totalTimeSpentMs,
+      };
+      const correctAnswers: Record<string, string[]> = {};
+      for (const [id, detail] of Object.entries(questionDetails)) {
+        if (detail.correct_answer) {
+          correctAnswers[id] = detail.correct_answer;
+        }
+      }
+      onSessionComplete(session, correctAnswers);
     }
-  }, [state.testResult, onSessionComplete]);
+  }, [state, questionDetails, onSessionComplete]);
 
   /** Review questions from the results screen (placeholder). */
   const handleReviewQuestions = useCallback(() => {
@@ -361,6 +396,142 @@ export function FullLengthTest({
       fetchQuestionDetail(currentQuestionId);
     }
   }, [currentQuestionId, questionDetails, fetchQuestionDetail]);
+
+  // ── Session Persistence ─────────────────────────────────────────────────────
+
+  /** Auto-save session to localStorage on state changes. */
+  useEffect(() => {
+    // Only save if the test has been started
+    if (state.phase !== "intro" && state.sessionId) {
+      saveFullLengthSession(state);
+    }
+  }, [state]);
+
+  /** Save session before page unload. */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (state.phase !== "intro" && state.sessionId) {
+        saveFullLengthSession(state);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [state]);
+
+  /** Clear session from localStorage when test is completed. */
+  useEffect(() => {
+    if (state.phase === "test-complete" && state.testResult) {
+      clearFullLengthSession();
+    }
+  }, [state.phase, state.testResult]);
+
+  // ── Test Results Calculation ─────────────────────────────────────────────────
+
+  /** Calculate test results when the test completes. */
+  const handleCompleteTest = useCallback(() => {
+    // We need both sections' module states to calculate results
+    const rwModule1Key = getModuleKey("reading-writing", 1);
+    const rwModule2Key = getModuleKey("reading-writing", 2);
+    const mathModule1Key = getModuleKey("math", 1);
+    const mathModule2Key = getModuleKey("math", 2);
+
+    const rwModule1 = state.moduleStates[rwModule1Key];
+    const rwModule2 = state.moduleStates[rwModule2Key];
+    const mathModule1 = state.moduleStates[mathModule1Key];
+    const mathModule2 = state.moduleStates[mathModule2Key];
+
+    if (!rwModule1 || !rwModule2 || !mathModule1 || !mathModule2) {
+      // Not all modules completed — just set phase without results
+      dispatch({ type: "SET_PHASE", payload: "test-complete" });
+      return;
+    }
+
+    // Build correct answers map from question details
+    const correctAnswers: Record<string, string[]> = {};
+    const questionDifficulties: Record<string, QuestionDifficulty> = {};
+
+    for (const [id, detail] of Object.entries(questionDetails)) {
+      if (detail.correct_answer) {
+        correctAnswers[id] = detail.correct_answer;
+      }
+      // Default to "M" (medium) — actual difficulty comes from the question bank listing
+      questionDifficulties[id] = "M" as QuestionDifficulty;
+    }
+
+    // Calculate module results
+    const rwModule1Result = calculateModuleResult(
+      rwModule1.answers,
+      correctAnswers,
+      questionDifficulties,
+      rwModule1.pretestQuestionIds,
+      1,
+      undefined,
+      rwModule1.timeRemainingMs > 0
+        ? (32 * 60 * 1000) - rwModule1.timeRemainingMs
+        : 32 * 60 * 1000
+    );
+
+    const rwModule2Result = calculateModuleResult(
+      rwModule2.answers,
+      correctAnswers,
+      questionDifficulties,
+      rwModule2.pretestQuestionIds,
+      2,
+      state.module2Difficulty["reading-writing"],
+      rwModule2.timeRemainingMs > 0
+        ? (32 * 60 * 1000) - rwModule2.timeRemainingMs
+        : 32 * 60 * 1000
+    );
+
+    const mathModule1Result = calculateModuleResult(
+      mathModule1.answers,
+      correctAnswers,
+      questionDifficulties,
+      mathModule1.pretestQuestionIds,
+      1,
+      undefined,
+      mathModule1.timeRemainingMs > 0
+        ? (35 * 60 * 1000) - mathModule1.timeRemainingMs
+        : 35 * 60 * 1000
+    );
+
+    const mathModule2Result = calculateModuleResult(
+      mathModule2.answers,
+      correctAnswers,
+      questionDifficulties,
+      mathModule2.pretestQuestionIds,
+      2,
+      state.module2Difficulty["math"],
+      mathModule2.timeRemainingMs > 0
+        ? (35 * 60 * 1000) - mathModule2.timeRemainingMs
+        : 35 * 60 * 1000
+    );
+
+    const rwSectionResult = calculateSectionResult(
+      "reading-writing",
+      rwModule1Result,
+      rwModule2Result
+    );
+
+    const mathSectionResult = calculateSectionResult(
+      "math",
+      mathModule1Result,
+      mathModule2Result
+    );
+
+    const testResult = calculateTestResult(
+      state.config,
+      rwSectionResult,
+      mathSectionResult,
+      state.createdAt,
+      new Date().toISOString()
+    );
+
+    dispatch({
+      type: "COMPLETE_TEST",
+      payload: { result: testResult },
+    });
+  }, [state, questionDetails]);
 
   // ── Render by phase ───────────────────────────────────────────────────────
 

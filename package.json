@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
     "docker": "docker buildx build --platform linux/amd64 -t lqkhoi/practicesat:latest --push ."
   },
   "dependencies": {

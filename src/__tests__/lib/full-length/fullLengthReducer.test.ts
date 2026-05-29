@@ -79,6 +79,7 @@ function makeSectionResult(
         accuracy: 0.5,
         timeMs: 600_000,
         domainBreakdown: {},
+        questionResults: [],
       },
       {
         moduleNumber: 2 as FullLengthModule,
@@ -89,6 +90,7 @@ function makeSectionResult(
         accuracy: 0.6,
         timeMs: 600_000,
         domainBreakdown: {},
+        questionResults: [],
       },
     ],
     totalCorrect: 22,

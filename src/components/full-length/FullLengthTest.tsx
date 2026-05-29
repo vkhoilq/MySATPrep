@@ -553,8 +553,8 @@ export function FullLengthTest({
       if (detail.correct_answer) {
         correctAnswers[id] = detail.correct_answer;
       }
-      // Default to "M" (medium) — actual difficulty comes from the question bank listing
-      questionDifficulties[id] = "M" as QuestionDifficulty;
+      // Use difficulty from questionMeta if available, otherwise default to "M"
+      questionDifficulties[id] = state.questionMeta[id]?.difficulty || "M";
     }
 
     // Calculate module results
@@ -563,11 +563,12 @@ export function FullLengthTest({
       correctAnswers,
       questionDifficulties,
       rwModule1.pretestQuestionIds,
+      rwModule1.questionOrder,
       1,
       undefined,
       rwModule1.timeRemainingMs > 0
-        ? (32 * 60 * 1000) - rwModule1.timeRemainingMs
-        : 32 * 60 * 1000
+        ? timeLimits["reading-writing-1"] - rwModule1.timeRemainingMs
+        : timeLimits["reading-writing-1"]
     );
 
     const rwModule2Result = calculateModuleResult(
@@ -575,11 +576,12 @@ export function FullLengthTest({
       correctAnswers,
       questionDifficulties,
       rwModule2.pretestQuestionIds,
+      rwModule2.questionOrder,
       2,
       state.module2Difficulty["reading-writing"],
       rwModule2.timeRemainingMs > 0
-        ? (32 * 60 * 1000) - rwModule2.timeRemainingMs
-        : 32 * 60 * 1000
+        ? timeLimits["reading-writing-2"] - rwModule2.timeRemainingMs
+        : timeLimits["reading-writing-2"]
     );
 
     const mathModule1Result = calculateModuleResult(
@@ -587,11 +589,12 @@ export function FullLengthTest({
       correctAnswers,
       questionDifficulties,
       mathModule1.pretestQuestionIds,
+      mathModule1.questionOrder,
       1,
       undefined,
       mathModule1.timeRemainingMs > 0
-        ? (35 * 60 * 1000) - mathModule1.timeRemainingMs
-        : 35 * 60 * 1000
+        ? timeLimits["math-1"] - mathModule1.timeRemainingMs
+        : timeLimits["math-1"]
     );
 
     const mathModule2Result = calculateModuleResult(
@@ -599,11 +602,12 @@ export function FullLengthTest({
       correctAnswers,
       questionDifficulties,
       mathModule2.pretestQuestionIds,
+      mathModule2.questionOrder,
       2,
       state.module2Difficulty["math"],
       mathModule2.timeRemainingMs > 0
-        ? (35 * 60 * 1000) - mathModule2.timeRemainingMs
-        : 35 * 60 * 1000
+        ? timeLimits["math-2"] - mathModule2.timeRemainingMs
+        : timeLimits["math-2"]
     );
 
     const rwSectionResult = calculateSectionResult(
@@ -630,7 +634,7 @@ export function FullLengthTest({
       type: "COMPLETE_TEST",
       payload: { result: testResult },
     });
-  }, [state, questionDetails]);
+  }, [state, questionDetails, qaMode]);
 
   // ── Render by phase ───────────────────────────────────────────────────────
 
@@ -1136,6 +1140,8 @@ export function FullLengthTest({
     return renderWithLayout(
       <TestResultsScreen
         testResult={state.testResult}
+        questionDetails={questionDetails}
+        questionMeta={state.questionMeta}
         onReviewQuestions={handleReviewQuestions}
         onBackToDashboard={handleBackToDashboard}
       />

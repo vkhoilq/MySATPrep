@@ -1,12 +1,19 @@
 "use client";
 
 import { useMemo } from "react";
-import { CheckCircle, XCircle, Clock, Trophy, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Trophy, ArrowLeft, ChevronDown } from "lucide-react";
 
-import { FullLengthTestResult } from "@/types/full-length";
+import { FullLengthTestResult, QuestionResult } from "@/types/full-length";
+import { API_Response_Question, QuestionDifficulty } from "@/types/question";
+import { QuestionMeta } from "@/lib/full-length/questionSelector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
 import {
   interpretSectionScore,
   interpretTotalScore,
@@ -17,6 +24,10 @@ import { cn } from "@/lib/utils";
 interface TestResultsScreenProps {
   /** The computed test result, or null if not yet available. */
   testResult: FullLengthTestResult | null;
+  /** questionId → full question data (stem, options, etc.) */
+  questionDetails: Record<string, API_Response_Question>;
+  /** questionId → metadata (externalId, ibn, difficulty, etc.) */
+  questionMeta: Record<string, QuestionMeta>;
   /** Navigate to the question review view. */
   onReviewQuestions: () => void;
   /** Return to the practice dashboard. */
@@ -65,6 +76,24 @@ function scoreLevelClass(level: string): string {
   }
 }
 
+/** Strip HTML tags from a string. */
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "");
+}
+
+/** Difficulty badge color classes. */
+function difficultyBadgeColor(difficulty: QuestionDifficulty): string {
+  switch (difficulty) {
+    case "E":
+      return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200";
+    case "M":
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-200";
+    case "H":
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-red-200";
+  }
+}
+
 /**
  * Results screen shown after completing a full-length practice test.
  *
@@ -73,6 +102,8 @@ function scoreLevelClass(level: string): string {
  */
 export function TestResultsScreen({
   testResult,
+  questionDetails,
+  questionMeta,
   onReviewQuestions,
   onBackToDashboard,
 }: TestResultsScreenProps) {
@@ -334,6 +365,159 @@ export function TestResultsScreen({
               </tbody>
             </table>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* ────── Question Details ────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Question Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {testResult.sections.map((section) => {
+            const sectionLabel = sectionDisplayName(section.section);
+            return section.modules.map((module) => {
+              const moduleLabel = `${sectionLabel} Module ${module.moduleNumber}`;
+              const correctCount = module.questionResults.filter(
+                (q) => q.isCorrect
+              ).length;
+              const unansweredCount = module.questionResults.filter(
+                (q) => q.isUnanswered
+              ).length;
+              const incorrectCount =
+                module.questionResults.length - correctCount - unansweredCount;
+
+              return (
+                <Collapsible
+                  key={`${section.section}-${module.moduleNumber}`}
+                  defaultOpen={false}
+                >
+                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 [&[data-state=open]>svg]:rotate-180">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold">
+                        {moduleLabel}
+                      </span>
+                      <div className="flex gap-2 text-xs">
+                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CheckCircle className="h-3 w-3" />
+                          {correctCount}
+                        </span>
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <XCircle className="h-3 w-3" />
+                          {incorrectCount}
+                        </span>
+                        {unansweredCount > 0 && (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <span className="inline-flex h-3 w-3 items-center justify-center">
+                              —
+                            </span>
+                            {unansweredCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 overflow-x-auto rounded-lg border">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+                            <th className="px-3 py-2 font-medium">#</th>
+                            <th className="px-3 py-2 font-medium">Preview</th>
+                            <th className="px-3 py-2 font-medium">Diff</th>
+                            <th className="px-3 py-2 font-medium">
+                              Your Answer
+                            </th>
+                            <th className="px-3 py-2 font-medium">Correct</th>
+                            <th className="px-3 py-2 font-medium">Result</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {module.questionResults.map((qr, idx) => {
+                            const questionDetail =
+                              questionDetails[qr.questionId];
+                            const stemPreview = questionDetail?.stem
+                              ? stripHtml(questionDetail.stem).slice(0, 80)
+                              : qr.questionId;
+                            const isUnanswered = qr.isUnanswered;
+
+                            return (
+                              <tr
+                                key={qr.questionId}
+                                className={cn(
+                                  "border-b last:border-b-0",
+                                  qr.isCorrect &&
+                                    "bg-green-50/50 dark:bg-green-950/20",
+                                  !qr.isCorrect &&
+                                    !isUnanswered &&
+                                    "bg-red-50/50 dark:bg-red-950/20",
+                                  isUnanswered &&
+                                    "bg-gray-50/50 dark:bg-gray-950/20"
+                                )}
+                              >
+                                <td className="px-3 py-2 font-medium">
+                                  {idx + 1}
+                                </td>
+                                <td
+                                  className="max-w-[200px] truncate px-3 py-2 text-muted-foreground"
+                                  title={
+                                    typeof stemPreview === "string"
+                                      ? stemPreview
+                                      : undefined
+                                  }
+                                >
+                                  {stemPreview}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "px-1.5 py-0 text-[10px]",
+                                      difficultyBadgeColor(qr.difficulty)
+                                    )}
+                                  >
+                                    {qr.difficulty}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-2">
+                                  {isUnanswered ? (
+                                    <span className="italic text-muted-foreground">
+                                      Unanswered
+                                    </span>
+                                  ) : (
+                                    qr.userAnswer
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 font-medium">
+                                  {qr.correctAnswer.join(", ")}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {qr.isCorrect ? (
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-sm font-bold text-green-700 dark:bg-green-900 dark:text-green-300">
+                                      ✓
+                                    </span>
+                                  ) : isUnanswered ? (
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                      —
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-red-700 dark:bg-red-900 dark:text-red-300">
+                                      ✗
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            });
+          })}
         </CardContent>
       </Card>
 

@@ -196,6 +196,8 @@ export interface FullLengthModuleResult {
   timeMs: number;
   /** Per-domain breakdown */
   domainBreakdown: Record<string, DomainModuleResult>;
+  /** Per-question results for detailed reporting */
+  questionResults: QuestionResult[];
 }
 
 /** Per-domain result within a module */
@@ -210,6 +212,22 @@ export interface DomainModuleResult {
   accuracy: number;
   /** Average time per question in ms */
   averageTimeMs: number;
+}
+
+/** Per-question result for detailed reporting */
+export interface QuestionResult {
+  /** Question ID */
+  questionId: string;
+  /** User's answer (null if unanswered) */
+  userAnswer: string | null;
+  /** Correct answer(s) */
+  correctAnswer: string[];
+  /** Whether the user's answer was correct */
+  isCorrect: boolean;
+  /** Whether the question was unanswered */
+  isUnanswered: boolean;
+  /** Question difficulty */
+  difficulty: QuestionDifficulty;
 }
 
 // ─── Test Result ──────────────────────────────────────────────────────────────

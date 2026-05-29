@@ -262,6 +262,7 @@ describe("calculateSectionScore", () => {
       accuracy: 50,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const module2: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -273,6 +274,7 @@ describe("calculateSectionScore", () => {
       accuracy: 75,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     const score = calculateSectionScore(module1, module2);
@@ -293,6 +295,7 @@ describe("calculateSectionScore", () => {
       accuracy: 0,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const allWrong2: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -304,6 +307,7 @@ describe("calculateSectionScore", () => {
       accuracy: 0,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     const score = calculateSectionScore(allWrong1, allWrong2);
@@ -321,6 +325,7 @@ describe("calculateSectionScore", () => {
       accuracy: 90,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const module2Easier: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -332,6 +337,7 @@ describe("calculateSectionScore", () => {
       accuracy: 90,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const module2Harder: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -343,6 +349,7 @@ describe("calculateSectionScore", () => {
       accuracy: 90,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     const easierScore = calculateSectionScore(module1, module2Easier);
@@ -362,6 +369,7 @@ describe("calculateSectionScore", () => {
       accuracy: 0,
       timeMs: 0,
       domainBreakdown: {},
+      questionResults: [],
     };
     const empty2: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -372,6 +380,7 @@ describe("calculateSectionScore", () => {
       accuracy: 0,
       timeMs: 0,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     expect(calculateSectionScore(empty1, empty2)).toBe(200);
@@ -387,6 +396,7 @@ describe("calculateModuleResult", () => {
       { q1: ["A"], q2: ["X"], q3: ["C"] },
       { q1: "E", q2: "M", q3: "H" },
       new Set(),
+      ["q1", "q2", "q3"],
       1,
       undefined,
       300000,
@@ -404,6 +414,7 @@ describe("calculateModuleResult", () => {
       { op1: ["A"], pt1: ["B"] },
       { op1: "E", pt1: "M" },
       new Set(["pt1"]),
+      ["op1", "pt1"],
       2,
       "harder",
       400000,
@@ -423,6 +434,7 @@ describe("calculateModuleResult", () => {
       { q1: ["A"], q2: ["B"], q3: ["X"], q4: ["Y"] },
       { q1: "E", q2: "M", q3: "H", q4: "E" },
       new Set(),
+      ["q1", "q2", "q3", "q4"],
       1,
       undefined,
       200000,
@@ -440,6 +452,7 @@ describe("calculateModuleResult", () => {
       { q1: ["A"], q2: ["B"] },
       { q1: "E", q2: "M" },
       new Set(),
+      ["q1", "q2"],
       1,
       undefined,
       0,
@@ -456,6 +469,7 @@ describe("calculateModuleResult", () => {
       { pt1: ["A"], pt2: ["B"] },
       { pt1: "E", pt2: "M" },
       new Set(["pt1", "pt2"]),
+      ["pt1", "pt2"],
       1,
       undefined,
       100000,
@@ -482,6 +496,7 @@ describe("calculateSectionResult", () => {
       accuracy: 50,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const mod2: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -493,6 +508,7 @@ describe("calculateSectionResult", () => {
       accuracy: 75,
       timeMs: 600000,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     const result = calculateSectionResult("reading-writing", mod1, mod2);
@@ -515,6 +531,7 @@ describe("calculateSectionResult", () => {
       accuracy: 0,
       timeMs: 300000,
       domainBreakdown: {},
+      questionResults: [],
     };
     const mod2: FullLengthModuleResult = {
       moduleNumber: 2,
@@ -525,6 +542,7 @@ describe("calculateSectionResult", () => {
       accuracy: 0,
       timeMs: 450000,
       domainBreakdown: {},
+      questionResults: [],
     };
 
     const result = calculateSectionResult("math", mod1, mod2);
@@ -550,6 +568,7 @@ describe("calculateTestResult", () => {
     accuracy: operational > 0 ? (correct / operational) * 100 : 0,
     timeMs: 600000,
     domainBreakdown: {},
+    questionResults: [],
   });
 
   const config: FullLengthTestConfig = {

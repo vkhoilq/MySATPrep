@@ -26,6 +26,7 @@ import {
   FullLengthModuleDifficulty,
   FullLengthTestResult,
   FullLengthTestConfig,
+  QuestionResult,
 } from "@/types/full-length";
 import { QuestionDifficulty } from "@/types/question";
 
@@ -205,10 +206,11 @@ export function calculateSectionScore(
 /**
  * Calculate a FullLengthModuleResult from raw answer data.
  *
- * @param answers - User's answers for this module
+ * @param answers - User's answers for this module (questionId → answer or null)
  * @param correctAnswers - Map of questionId → correct answers
  * @param questionDifficulties - Map of questionId → difficulty
  * @param pretestQuestionIds - Set of pretest question IDs
+ * @param questionOrder - Ordered list of ALL question IDs in this module
  * @param moduleNumber - Module number (1 or 2)
  * @param difficulty - Difficulty path (only meaningful for Module 2)
  * @param timeMs - Time spent on this module in milliseconds
@@ -219,6 +221,7 @@ export function calculateModuleResult(
   correctAnswers: Record<string, string[]>,
   questionDifficulties: Record<string, QuestionDifficulty>,
   pretestQuestionIds: Set<string>,
+  questionOrder: string[],
   moduleNumber: 1 | 2,
   difficulty: FullLengthModuleDifficulty | undefined,
   timeMs: number
@@ -229,10 +232,13 @@ export function calculateModuleResult(
   let pretestCount = 0;
 
   const domainBreakdown: Record<string, { correct: number; total: number; timeMs: number }> = {};
+  const questionResults: QuestionResult[] = [];
 
-  for (const [questionId, userAnswer] of Object.entries(answers)) {
+  for (const questionId of questionOrder) {
     const isPretest = pretestQuestionIds.has(questionId);
     const correct = correctAnswers[questionId];
+    const userAnswer = answers[questionId] ?? null;
+    const difficulty = questionDifficulties[questionId] || "M";
 
     if (isPretest) {
       pretestCount++;
@@ -247,14 +253,22 @@ export function calculateModuleResult(
 
     operationalCount++;
 
-    if (userAnswer === null) continue; // Unanswered
-
-    if (correct) {
-      const isCorrect = correct.some(
+    let isCorrect = false;
+    if (userAnswer !== null && correct) {
+      isCorrect = correct.some(
         (ca) => ca.toUpperCase() === userAnswer.toUpperCase()
       );
       if (isCorrect) correctCount++;
     }
+
+    questionResults.push({
+      questionId,
+      userAnswer,
+      correctAnswer: correct || [],
+      isCorrect,
+      isUnanswered: userAnswer === null,
+      difficulty,
+    });
   }
 
   const accuracy =
@@ -270,6 +284,7 @@ export function calculateModuleResult(
     accuracy,
     timeMs,
     domainBreakdown: {}, // Will be populated with domain data if available
+    questionResults,
   };
 }
 

@@ -910,6 +910,16 @@ function Practice() {
           )}
         </React.Fragment>
       ) : !shouldRestoreSession && practiceSelections ? (
+        // DEBUG: Log which component is rendering
+        (() => {
+          console.log("[Practice] Routing decision:", {
+            practiceType: practiceSelections.practiceType,
+            isFullLength: practiceSelections.practiceType === "full-length",
+            onboardingComplete,
+            sessionComplete,
+          });
+          return null;
+        })(),
         practiceSelections.practiceType === "full-length" ? (
           <FullLengthTest
             practiceSelections={practiceSelections}

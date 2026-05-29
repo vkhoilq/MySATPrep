@@ -77,6 +77,7 @@ export function FullLengthTest({
   practiceSelections,
   onSessionComplete,
 }: FullLengthTestProps) {
+  console.log("[FullLengthTest] Rendering with practiceType:", practiceSelections.practiceType, "assessment:", practiceSelections.assessment);
   const [state, dispatch] = useReducer(
     fullLengthReducer,
     undefined,
@@ -113,6 +114,11 @@ export function FullLengthTest({
   const handleStartTest = useCallback(async () => {
     setError(null);
     setQuestionsLoading(true);
+
+    console.log("[FullLengthTest] handleStartTest called", {
+      assessment: practiceSelections.assessment,
+      practiceType: practiceSelections.practiceType,
+    });
 
     try {
       // Fetch questions for the entire test
@@ -674,6 +680,9 @@ export function FullLengthTest({
     return renderWithLayout(
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="text-center">
+          <Badge variant="outline" className="mx-auto mb-2 text-xs">
+            Full-Length Practice
+          </Badge>
           <CardTitle className="text-2xl">
             {state.currentSectionIndex === 0
               ? "Section 1"

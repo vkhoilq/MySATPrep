@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/navbar";
 import PracticeOnboarding from "@/components/practice-onboarding";
 import PracticeRushMultistep from "@/components/practice-rush-multistep";
 import PracticeRushCelebration from "@/components/celebrating-section/practice-rush-celebration";
+import { FullLengthTest } from "@/components/full-length/FullLengthTest";
 // import type { Metadata } from "next";
 
 import {
@@ -909,14 +910,31 @@ function Practice() {
           )}
         </React.Fragment>
       ) : !shouldRestoreSession && practiceSelections ? (
-        <PracticeRushMultistep
-          practiceSelections={practiceSelections}
-          onSessionComplete={handleSessionComplete}
-          restoredSessionData={
-            restoredSessionData || reviewSessionData || undefined
-          }
-          isReviewMode={isReviewMode}
-        />
+        // DEBUG: Log which component is rendering
+        (() => {
+          console.log("[Practice] Routing decision:", {
+            practiceType: practiceSelections.practiceType,
+            isFullLength: practiceSelections.practiceType === "full-length",
+            onboardingComplete,
+            sessionComplete,
+          });
+          return null;
+        })(),
+        practiceSelections.practiceType === "full-length" ? (
+          <FullLengthTest
+            practiceSelections={practiceSelections}
+            onSessionComplete={handleSessionComplete}
+          />
+        ) : (
+          <PracticeRushMultistep
+            practiceSelections={practiceSelections}
+            onSessionComplete={handleSessionComplete}
+            restoredSessionData={
+              restoredSessionData || reviewSessionData || undefined
+            }
+            isReviewMode={isReviewMode}
+          />
+        )
       ) : null}
       <FooterSection />
     </React.Fragment>

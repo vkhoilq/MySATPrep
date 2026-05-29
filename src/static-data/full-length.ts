@@ -340,6 +340,77 @@ export const PSAT_89_TEST_BLUEPRINT: FullLengthTestBlueprint = {
   totalTimeWithBreaksMinutes: 130,
 };
 
+// ─── QA Blueprint ──────────────────────────────────────────────────────────────
+
+/**
+ * QA Test Blueprint — 5 questions per module, 5-minute timer.
+ *
+ * Used for quick QA testing of the full-length flow without sitting through
+ * a full 98-question, 134-minute test. Domain distribution is scaled
+ * proportionally from the real SAT blueprint.
+ *
+ * Only shown in development / QA mode via a special button on the intro screen.
+ */
+export const QA_SAT_TEST_BLUEPRINT: FullLengthTestBlueprint = {
+  assessment: "SAT",
+  sections: [
+    {
+      section: "reading-writing",
+      modules: [
+        {
+          moduleNumber: 1,
+          operationalQuestions: 4,
+          pretestQuestions: 1,
+          totalQuestions: 5,
+          timeMinutes: 5,
+          domainDistribution: { INI: 2, CAS: 1, EOI: 1, SEC: 1 },
+          difficultyDistribution: MODULE_1_DIFFICULTY_MIX,
+        },
+        {
+          moduleNumber: 2,
+          operationalQuestions: 4,
+          pretestQuestions: 1,
+          totalQuestions: 5,
+          timeMinutes: 5,
+          domainDistribution: { INI: 2, CAS: 1, EOI: 1, SEC: 1 },
+          difficultyDistribution: MODULE_2_EASIER_MIX,
+        },
+      ],
+      breakAfter: false,
+      breakDurationMinutes: 0,
+    },
+    {
+      section: "math",
+      modules: [
+        {
+          moduleNumber: 1,
+          operationalQuestions: 4,
+          pretestQuestions: 1,
+          totalQuestions: 5,
+          timeMinutes: 5,
+          domainDistribution: { H: 2, P: 1, Q: 1, S: 1 },
+          difficultyDistribution: MODULE_1_DIFFICULTY_MIX,
+        },
+        {
+          moduleNumber: 2,
+          operationalQuestions: 4,
+          pretestQuestions: 1,
+          totalQuestions: 5,
+          timeMinutes: 5,
+          domainDistribution: { H: 2, P: 1, Q: 1, S: 1 },
+          difficultyDistribution: MODULE_2_EASIER_MIX,
+        },
+      ],
+      breakAfter: true,
+      breakDurationMinutes: 1,
+    },
+  ],
+  totalQuestions: 20,
+  totalTimeMinutes: 20,
+  breakDurationMinutes: 1,
+  totalTimeWithBreaksMinutes: 21,
+};
+
 // ─── Blueprint Lookup ──────────────────────────────────────────────────────────
 
 /**
@@ -350,6 +421,7 @@ export const TEST_BLUEPRINTS: Record<string, FullLengthTestBlueprint> = {
   SAT: SAT_TEST_BLUEPRINT,
   "PSAT/NMSQT": PSAT_NMSQT_TEST_BLUEPRINT,
   PSAT: PSAT_89_TEST_BLUEPRINT,
+  "QA-SAT": QA_SAT_TEST_BLUEPRINT,
 };
 
 /**

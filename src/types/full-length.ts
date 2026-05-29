@@ -128,6 +128,8 @@ export interface FullLengthTestConfig {
   showTimer: boolean;
   /** Whether to allow pausing the test */
   allowPause: boolean;
+  /** QA mode: 5 questions per module, 5-minute timer, for quick testing */
+  qa?: boolean;
 }
 
 // ─── Module State ─────────────────────────────────────────────────────────────

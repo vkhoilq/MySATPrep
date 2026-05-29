@@ -66,6 +66,14 @@ const MODULE_TIME_LIMITS: Record<string, number> = {
   "math-2": 35 * 60 * 1000,
 };
 
+/** QA mode time limits — 5 minutes per module */
+const QA_MODULE_TIME_LIMITS: Record<string, number> = {
+  "reading-writing-1": 5 * 60 * 1000,
+  "reading-writing-2": 5 * 60 * 1000,
+  "math-1": 5 * 60 * 1000,
+  "math-2": 5 * 60 * 1000,
+};
+
 /**
  * Main orchestrator component that manages the entire full-length test flow.
  *
@@ -88,9 +96,13 @@ export function FullLengthTest({
   const [isTimerVisible, setIsTimerVisible] = useState(true);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qaMode, setQaMode] = useState(false);
 
   // Track if questions have been fetched for the current section
   const questionsFetched = useRef<Record<string, boolean>>({});
+
+  // ── QA mode time limits ──────────────────────────────────────────────────────
+  const timeLimits = qaMode ? QA_MODULE_TIME_LIMITS : MODULE_TIME_LIMITS;
 
   // ── Question detail cache ──────────────────────────────────────────────────
   // Maps questionId → full question data (stem, options, correct answer, etc.)
@@ -107,17 +119,22 @@ export function FullLengthTest({
       includeBreak: true,
       showTimer: true,
       allowPause: false,
+      qa: qaMode,
     };
-  }, [practiceSelections.assessment]);
+  }, [practiceSelections.assessment, qaMode]);
 
-  /** Kick off the test from the intro screen — fetch questions first, then transition. */
-  const handleStartTest = useCallback(async () => {
+  /** Kick off the test from the intro screen — fetch questions first, then transition.
+   *  Pass qa=true for QA mode (5 questions/module, 5 min timer).
+   */
+  const handleStartTest = useCallback(async (qa: boolean = false) => {
     setError(null);
     setQuestionsLoading(true);
+    if (qa) setQaMode(true);
 
     console.log("[FullLengthTest] handleStartTest called", {
       assessment: practiceSelections.assessment,
       practiceType: practiceSelections.practiceType,
+      qa,
     });
 
     try {
@@ -127,6 +144,7 @@ export function FullLengthTest({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessment: practiceSelections.assessment,
+          qa,
         }),
       });
 
@@ -190,7 +208,7 @@ export function FullLengthTest({
     } finally {
       setQuestionsLoading(false);
     }
-  }, [buildTestConfig, practiceSelections.assessment]);
+  }, [buildTestConfig, practiceSelections.assessment, qaMode]);
 
   /** Fetch questions for the current section and start the module. */
   const handleStartSection = useCallback(
@@ -210,6 +228,7 @@ export function FullLengthTest({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               assessment: practiceSelections.assessment,
+              qa: qaMode,
             }),
           });
 
@@ -267,7 +286,7 @@ export function FullLengthTest({
       }
 
       // Start the module
-      const timeLimit = MODULE_TIME_LIMITS[moduleKey] || 32 * 60 * 1000;
+      const timeLimit = timeLimits[moduleKey] || 32 * 60 * 1000;
       dispatch({
         type: "START_MODULE",
         payload: { section, moduleNumber: 1, timeRemainingMs: timeLimit },
@@ -280,7 +299,7 @@ export function FullLengthTest({
   const handleProceedToModule = useCallback(() => {
     const section = getCurrentSection(state);
     const moduleKey = getModuleKey(section, state.currentModuleNumber);
-    const timeLimit = MODULE_TIME_LIMITS[moduleKey] || 32 * 60 * 1000;
+    const timeLimit = timeLimits[moduleKey] || 32 * 60 * 1000;
     dispatch({
       type: "START_MODULE",
       payload: {
@@ -289,7 +308,7 @@ export function FullLengthTest({
         timeRemainingMs: timeLimit,
       },
     });
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Navigate to a specific question. */
   const handleNavigateQuestion = useCallback(
@@ -310,7 +329,7 @@ export function FullLengthTest({
       type: "TOGGLE_FLAG_FOR_REVIEW",
       payload: { questionId },
     });
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Go to the next question. */
   const handleNextQuestion = useCallback(() => {
@@ -321,13 +340,13 @@ export function FullLengthTest({
       moduleState.questionOrder.length - 1
     );
     dispatch({ type: "NAVIGATE_QUESTION", payload: { questionIndex: nextIndex } });
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Go to the previous question. */
   const handlePrevQuestion = useCallback(() => {
     const prevIndex = Math.max(0, state.currentQuestionIndex - 1);
     dispatch({ type: "NAVIGATE_QUESTION", payload: { questionIndex: prevIndex } });
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Submit the current module and advance. */
   const handleCompleteModule = useCallback(() => {
@@ -336,7 +355,7 @@ export function FullLengthTest({
       type: "COMPLETE_MODULE",
       payload: { section, moduleNumber: state.currentModuleNumber },
     });
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Review flagged questions before submitting module. */
   const handleReviewFlagged = useCallback(() => {
@@ -355,7 +374,7 @@ export function FullLengthTest({
     if (state.currentModuleNumber === 1) {
       // Move to Module 2
       const moduleKey = getModuleKey(section, 2);
-      const timeLimit = MODULE_TIME_LIMITS[moduleKey] || 32 * 60 * 1000;
+      const timeLimit = timeLimits[moduleKey] || 32 * 60 * 1000;
       dispatch({
         type: "START_MODULE",
         payload: { section, moduleNumber: 2, timeRemainingMs: timeLimit },
@@ -374,7 +393,7 @@ export function FullLengthTest({
         handleCompleteTest();
       }
     }
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Complete the break early. */
   const handleCompleteBreak = useCallback(() => {
@@ -431,7 +450,7 @@ export function FullLengthTest({
   const currentModuleState = getCurrentModuleState(state);
   const currentSection = getCurrentSection(state);
   const currentModuleKey = getModuleKey(currentSection, state.currentModuleNumber);
-  const currentTimeLimit = MODULE_TIME_LIMITS[currentModuleKey] || 32 * 60 * 1000;
+  const currentTimeLimit = timeLimits[currentModuleKey] || 32 * 60 * 1000;
 
   // ── Question detail fetching ──────────────────────────────────────────────
 
@@ -482,7 +501,7 @@ export function FullLengthTest({
     if (state.phase !== "intro" && state.sessionId) {
       saveFullLengthSession(state);
     }
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Save session before page unload. */
   useEffect(() => {
@@ -493,7 +512,7 @@ export function FullLengthTest({
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [state]);
+  }, [state, qaMode]);
 
   /** Clear session from localStorage when test is completed. */
   useEffect(() => {
@@ -661,7 +680,7 @@ export function FullLengthTest({
           <Button
             size="lg"
             className="w-full"
-            onClick={handleStartTest}
+            onClick={() => handleStartTest(false)}
             disabled={questionsLoading}
           >
             {questionsLoading ? (
@@ -672,6 +691,17 @@ export function FullLengthTest({
                 Start Full-Length Test
               </>
             )}
+          </Button>
+
+          {/* QA Mode: 5 questions per module, 5-minute timer */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs text-muted-foreground"
+            onClick={() => handleStartTest(true)}
+            disabled={questionsLoading}
+          >
+            🧪 QA Mode — 5 questions/module, 5 min timer
           </Button>
         </CardContent>
       </Card>
@@ -689,6 +719,11 @@ export function FullLengthTest({
           <Badge variant="outline" className="mx-auto mb-2 text-xs">
             Full-Length Practice
           </Badge>
+          {qaMode && (
+            <Badge variant="secondary" className="mx-auto mb-2 text-xs bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200">
+              🧪 QA Mode
+            </Badge>
+          )}
           <CardTitle className="text-2xl">
             {state.currentSectionIndex === 0
               ? "Section 1"

@@ -186,8 +186,8 @@ export function selectQuestionsForModule(
     };
   }
 
-  const domainDistribution = getDomainDistribution(section);
-  const difficultyDistribution = getDifficultyDistribution(moduleNumber, moduleDifficulty);
+  const domainDistribution = moduleConfig.domainDistribution;
+  const difficultyDistribution = moduleConfig.difficultyDistribution;
   const questionTypeRatio = getQuestionTypeRatio(section);
 
   // Filter out already-used questions

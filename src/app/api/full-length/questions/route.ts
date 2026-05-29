@@ -28,9 +28,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const assessment = body.assessment || "SAT";
+    const qa = body.qa === true;
+
+    // In QA mode, use the QA-SAT blueprint (5 questions per module, 5 min timer)
+    const effectiveAssessment = qa ? "QA-SAT" : assessment;
 
     // Validate assessment
-    if (!(assessment in Assessments)) {
+    if (!(effectiveAssessment in Assessments) && effectiveAssessment !== "QA-SAT") {
       return NextResponse.json(
         { success: false, error: `Invalid assessment: ${assessment}` },
         { status: 400 }
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
     const selection = selectQuestionsForTest(
       rwQuestions,
       mathQuestions,
-      assessment
+      effectiveAssessment
     );
 
     return NextResponse.json(

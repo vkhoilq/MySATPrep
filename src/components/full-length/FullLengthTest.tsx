@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Flag, Play, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Play, RotateCcw, Calculator } from "lucide-react";
 import { MathJaxContext } from "better-react-mathjax";
 
 import { PracticeSelections, PracticeSession } from "@/types/session";
@@ -28,6 +28,7 @@ import {
 import { TestQuestionSelection, QuestionMeta } from "@/lib/full-length/questionSelector";
 import { calculateModuleResult, calculateSectionResult, calculateTestResult } from "@/lib/full-length/scoring";
 import { SectionTimer } from "./SectionTimer";
+import { DraggableDesmosPopup } from "@/components/popups/desmos-popup";
 import { QuestionNavigator } from "./QuestionNavigator";
 import { TestResultsScreen } from "./TestResultsScreen";
 import { QuestionCard } from "./QuestionCard";
@@ -97,6 +98,7 @@ export function FullLengthTest({
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qaMode, setQaMode] = useState(false);
+  const [isDesmosPopupOpen, setIsDesmosPopupOpen] = useState(false);
 
   // Track if questions have been fetched for the current section
   const questionsFetched = useRef<Record<string, boolean>>({});
@@ -903,6 +905,17 @@ export function FullLengthTest({
                   >
                     Review Flagged
                   </Button>
+                  {!isReadingWriting && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="bg-blue-500 hover:bg-blue-600 text-white border-blue-700 hover:border-blue-800"
+                      onClick={() => setIsDesmosPopupOpen((v) => !v)}
+                    >
+                      <Calculator className="mr-1 h-4 w-4" />
+                      Calculator
+                    </Button>
+                  )}
                 </div>
 
                 <Button
@@ -927,6 +940,14 @@ export function FullLengthTest({
               />
             </div>
           </div>
+
+          {/* Desmos Calculator — only for Math sections */}
+          {!isReadingWriting && (
+            <DraggableDesmosPopup
+              isOpen={isDesmosPopupOpen}
+              onClose={() => setIsDesmosPopupOpen(false)}
+            />
+          )}
         </div>
       </MathJaxContext>
     );
